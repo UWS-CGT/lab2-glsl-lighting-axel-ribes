@@ -52,7 +52,8 @@ rt3d::lightStruct light0 = {
 	{-10.0f, 10.0f, 10.0f, 1.0f}  // position
 };
 glm::vec4 lightPos(-10.0f, 10.0f, 10.0f, 1.0f); //light position
-
+glm::vec4 staticLightPos(-10.0f, 10.0f, 10.0f, 1.0f);// light position while static in the world
+bool lightPosIsInSky = true;
 rt3d::materialStruct material0 = {
 	{0.2f, 0.4f, 0.2f, 1.0f}, // ambient
 	{0.5f, 1.0f, 0.5f, 1.0f}, // diffuse
@@ -249,6 +250,9 @@ glm::vec3 moveRight(glm::vec3 pos, GLfloat angle, GLfloat d) {
 
 void update(void) {
 	const Uint8 *keys = SDL_GetKeyboardState(NULL);
+
+	if (keys[SDL_SCANCODE_L]) lightPosIsInSky = !lightPosIsInSky;  //fix or not the light to sky
+
 	if ( keys[SDL_SCANCODE_W] ) eye = moveForward(eye,r,0.1f);
 	if ( keys[SDL_SCANCODE_S] ) eye = moveForward(eye,r,-0.1f);
 	if ( keys[SDL_SCANCODE_A] ) eye = moveRight(eye,r,-0.1f);
@@ -256,6 +260,14 @@ void update(void) {
 	if ( keys[SDL_SCANCODE_R] ) eye.y += 0.1;
 	if ( keys[SDL_SCANCODE_F] ) eye.y -= 0.1;
 
+	if (lightPosIsInSky) {
+		lightPos = staticLightPos;
+	}
+	else if (!lightPosIsInSky) {
+		lightPos = glm::vec4(eye, 1.0f);
+		cout << eye[0]  << " " << eye[1] << " " << eye[2] <<endl;
+	}
+	
 	if ( keys[SDL_SCANCODE_COMMA] ) r -= 1.0f;
 	if ( keys[SDL_SCANCODE_PERIOD] ) r += 1.0f;
 
