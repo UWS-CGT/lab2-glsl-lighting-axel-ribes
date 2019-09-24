@@ -260,8 +260,12 @@ void update(void) {
 	if ( keys[SDL_SCANCODE_R] ) eye.y += 0.1;
 	if ( keys[SDL_SCANCODE_F] ) eye.y -= 0.1;
 
+	//move the light by hand while not focused on camera
 	if (lightPosIsInSky) {
-		lightPos = staticLightPos;
+		if (keys[SDL_SCANCODE_UP]) lightPos = glm::vec4(moveForward(lightPos, r, 0.1f), 1.0f);
+		if (keys[SDL_SCANCODE_DOWN]) lightPos = glm::vec4(moveForward(lightPos, r, -0.1f), 1.0f);
+		if (keys[SDL_SCANCODE_LEFT]) lightPos = glm::vec4(moveRight(lightPos, r, -0.1f), 1.0f);
+		if (keys[SDL_SCANCODE_RIGHT]) lightPos = glm::vec4(moveRight(lightPos, r, 0.1f),1.0f);
 	}
 	else if (!lightPosIsInSky) {
 		lightPos = glm::vec4(eye, 1.0f);
