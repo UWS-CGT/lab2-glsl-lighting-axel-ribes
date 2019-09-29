@@ -27,7 +27,7 @@ using namespace std;
 
 GLuint meshIndexCount = 0;
 GLuint md2VertCount = 0;
-GLuint meshObjects[2];
+GLuint meshObjects[3];
 
 GLuint shaderProgram;
 GLuint skyboxProgram;
@@ -41,7 +41,7 @@ glm::vec3 up(0.0f, 1.0f, 0.0f);
 stack<glm::mat4> mvStack; 
 
 // TEXTURE STUFF
-GLuint textures[2];
+GLuint textures[3];
 GLuint skybox[5];
 GLuint labels[5];
 
@@ -51,8 +51,7 @@ rt3d::lightStruct light0 = {
 	{1.0f, 1.0f, 1.0f, 1.0f}, // specular
 	{-10.0f, 10.0f, 10.0f, 1.0f}  // position
 };
-glm::vec4 lightPos(-10.0f, 10.0f, 10.0f, 1.0f); //light position
-glm::vec4 staticLightPos(-10.0f, 10.0f, 10.0f, 1.0f);// light position while static in the world
+glm::vec4 lightPos(-10.0f, 10.0f, 10.0f, 1.0f); //light position at the begining
 bool lightPosIsInSky = true;
 rt3d::materialStruct material0 = {
 	{0.2f, 0.4f, 0.2f, 1.0f}, // ambient
@@ -215,7 +214,9 @@ void init(void) {
 	meshObjects[1] = tmpModel.ReadMD2Model("../resources/tris.MD2");
 	md2VertCount = tmpModel.getVertDataCount();
 
-	
+	//try blue cube
+	textures[2] = loadBitmap("../resources/blue.bmp");
+	meshObjects[2] = rt3d::createMesh(verts.size() / 3, verts.data(), nullptr, norms.data(), tex_coords.data(), size, indices.data());
 	
 	skybox[0] = loadBitmap("../resources/Town-skybox/Town_ft.bmp");
 	skybox[1] = loadBitmap("../resources/Town-skybox/Town_bk.bmp");
@@ -269,7 +270,7 @@ void update(void) {
 	}
 	else if (!lightPosIsInSky) {
 		lightPos = glm::vec4(eye, 1.0f);
-		cout << eye[0]  << " " << eye[1] << " " << eye[2] <<endl;
+		//cout << eye[0]  << " " << eye[1] << " " << eye[2] <<endl;
 	}
 	
 	if ( keys[SDL_SCANCODE_COMMA] ) r -= 1.0f;
@@ -393,6 +394,8 @@ void draw(SDL_Window * window) {
 	rt3d::drawIndexedMesh(meshObjects[0],meshIndexCount,GL_TRIANGLES);
 	mvStack.pop();
 
+
+
 	// Animate the md2 model, and update the mesh with new vertex data
 	tmpModel.Animate(currentAnim,0.1);
 	rt3d::updateMesh(meshObjects[1],RT3D_VERTEX,tmpModel.getAnimVerts(),tmpModel.getVertDataSize());
@@ -427,6 +430,19 @@ void draw(SDL_Window * window) {
 	rt3d::setUniformMatrix4fv(skyboxProgram, "modelview", glm::value_ptr(mvStack.top()));
 	rt3d::drawIndexedMesh(meshObjects[0], meshIndexCount, GL_TRIANGLES);
 	mvStack.pop();
+
+//
+//
+// draw a blue cube
+	glBindTexture(GL_TEXTURE_2D, textures[2]);
+	mvStack.push(mvStack.top());
+	mvStack.top() = glm::translate(mvStack.top(), glm::vec3(0.0f, 2.0f, -15.0f));
+	mvStack.top() = glm::scale(mvStack.top(), glm::vec3(-5.0f, 2.0f, -5.0f));
+	rt3d::setUniformMatrix4fv(shaderProgram, "modelview", glm::value_ptr(mvStack.top()));
+	rt3d::setMaterial(shaderProgram, material0);
+	rt3d::drawIndexedMesh(meshObjects[2], meshIndexCount, GL_TRIANGLES);
+	mvStack.pop();
+
 	
 	
 	// remember to use at least one pop operation per push...
