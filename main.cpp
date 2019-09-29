@@ -256,7 +256,7 @@ void update(void) {
 
 	if ( keys[SDL_SCANCODE_W] ) eye = moveForward(eye,r,0.1f);
 	if ( keys[SDL_SCANCODE_S] ) eye = moveForward(eye,r,-0.1f);
-	if ( keys[SDL_SCANCODE_A] ) eye = moveRight(eye,r,-0.1f);
+	if ( keys[SDL_SCANCODE_Q] ) eye = moveRight(eye,r,-0.1f);
 	if ( keys[SDL_SCANCODE_D] ) eye = moveRight(eye,r,0.1f);
 	if ( keys[SDL_SCANCODE_R] ) eye.y += 0.1;
 	if ( keys[SDL_SCANCODE_F] ) eye.y -= 0.1;
@@ -454,6 +454,19 @@ void draw(SDL_Window * window) {
 	rt3d::setMaterial(shaderProgram, material0);
 	rt3d::drawIndexedMesh(meshObjects[2], meshIndexCount, GL_TRIANGLES);
 	mvStack.pop();
+
+	//
+//
+// cube following light
+	glBindTexture(GL_TEXTURE_2D, textures[1]);
+	mvStack.push(mvStack.top());
+	mvStack.top() = glm::translate(mvStack.top(), glm::vec3(lightPos.x, 1.0f, lightPos.z)); // position same as light
+	mvStack.top() = glm::scale(mvStack.top(), glm::vec3(0.1f, 0.1f, 0.1f)); //shape or size
+	rt3d::setUniformMatrix4fv(shaderProgram, "modelview", glm::value_ptr(mvStack.top()));
+	rt3d::setMaterial(shaderProgram, material0);
+	rt3d::drawIndexedMesh(meshObjects[2], meshIndexCount, GL_TRIANGLES);
+	mvStack.pop();
+
 
 	
 	
