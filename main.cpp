@@ -443,6 +443,18 @@ void draw(SDL_Window * window) {
 	rt3d::drawIndexedMesh(meshObjects[2], meshIndexCount, GL_TRIANGLES);
 	mvStack.pop();
 
+//
+//
+// draw a hobgoblin cube
+	glBindTexture(GL_TEXTURE_2D, textures[1]);
+	mvStack.push(mvStack.top());
+	mvStack.top() = glm::translate(mvStack.top(), glm::vec3(0.0f, 8.0f, -15.0f));
+	mvStack.top() = glm::scale(mvStack.top(), glm::vec3(-5.0f, 2.0f, -5.0f));
+	rt3d::setUniformMatrix4fv(shaderProgram, "modelview", glm::value_ptr(mvStack.top()));
+	rt3d::setMaterial(shaderProgram, material0);
+	rt3d::drawIndexedMesh(meshObjects[2], meshIndexCount, GL_TRIANGLES);
+	mvStack.pop();
+
 	
 	
 	// remember to use at least one pop operation per push...
