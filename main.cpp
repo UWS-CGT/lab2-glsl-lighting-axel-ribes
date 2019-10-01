@@ -374,6 +374,29 @@ void draw(SDL_Window * window) {
 	
 	glUseProgram(shaderProgram);
 
+
+	GLfloat attConstant = 1;
+	GLfloat attLinear = 0.01;
+	GLfloat attQuadratic = 0.01;
+
+	// set light attenuation shader uniforms
+	int uniformIndex =
+		glGetUniformLocation(shaderProgram,
+			"attConst");
+	glUniform1f(uniformIndex, attConstant);
+	// repeat for other terms		// set light attenuation shader uniforms
+	int uniformLine =
+		glGetUniformLocation(shaderProgram,
+			"attLinear");
+	glUniform1f(uniformLine, attLinear);
+	// repeat for other terms		// set light attenuation shader uniforms
+	int uniformQuadra =
+		glGetUniformLocation(shaderProgram,
+			"attQuadratic");
+	glUniform1f(uniformQuadra, attQuadratic);
+	// repeat for other terms
+
+
 	glm::vec4 tmp = mvStack.top()*lightPos;
 	light0.position[0] = tmp.x;
 	light0.position[1] = tmp.y;

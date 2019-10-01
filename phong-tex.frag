@@ -19,6 +19,11 @@ struct materialStruct
 	float shininess;
 };
 
+uniform float attConst;
+uniform float attLinear;
+uniform float attQuadratic;
+in float ex_D;
+
 uniform lightStruct light;
 uniform materialStruct material;
 uniform sampler2D textureUnit0;
@@ -45,7 +50,13 @@ void main(void) {
 	vec4 specularI = light.specular * material.specular;
 	specularI = specularI * pow(max(dot(R,ex_V),0), material.shininess);
 
+	float attenuation = attConst + attLinear * ex_D + attQuadratic * ex_D*ex_D;
+	attenuation = 1/attenuation;
+	vec4 tmp_Color = (diffuseI + specularI);//attenuation does not
+	//affect ambient light
+	vec4 litColour = ambientI+vec4(tmp_Color.rgb / attenuation, 1.0);
+
 	// Fragment colour
-	out_Color = (ambientI + diffuseI + specularI) * texture(textureUnit0, ex_TexCoord);
+	out_Color = litColour * texture(textureUnit0, ex_TexCoord);
 	//out_Color = texture2D(textureUnit0, ex_TexCoord);
 }

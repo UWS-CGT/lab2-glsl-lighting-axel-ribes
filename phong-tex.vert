@@ -8,11 +8,8 @@ uniform mat4 projection;
 uniform vec4 lightPosition;
 //uniform mat3 normalmatrix;
 
-uniform float attConst;
-uniform float attLinear;
-uniform float attQuadratic;
-out float ex_Dist;
-in float ex_D;
+
+out float ex_D;
 
 in  vec3 in_Position;
 in  vec3 in_Normal;
@@ -46,6 +43,8 @@ void main(void) {
 
 	ex_TexCoord = in_TexCoord;
 
+	ex_D = distance(vertexPosition,lightPosition);
+
     gl_Position = projection * vertexPosition;
 
 }
