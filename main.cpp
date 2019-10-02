@@ -16,7 +16,7 @@
 #include <stack>
 #include "md2model.h"
 
-#include <SDL_ttf.h>
+//#include <SDL_ttf.h>
 
 using namespace std;
 
@@ -26,11 +26,13 @@ using namespace std;
 // Real programs don't use globals :-D
 
 GLuint meshIndexCount = 0;
+GLuint meshIndexCount_bunny = 0;
 GLuint md2VertCount = 0;
 GLuint meshObjects[3];
 
 GLuint shaderProgram;
 GLuint skyboxProgram;
+GLuint bunnyShaderProgram;
 
 GLfloat r = 0.0f;
 
@@ -38,7 +40,7 @@ glm::vec3 eye(0.0f, 1.0f, 0.0f);
 glm::vec3 at(0.0f, 1.0f, -1.0f);
 glm::vec3 up(0.0f, 1.0f, 0.0f);
 
-stack<glm::mat4> mvStack; 
+stack<glm::mat4> mvStack;
 
 // TEXTURE STUFF
 GLuint textures[3];
@@ -51,8 +53,10 @@ rt3d::lightStruct light0 = {
 	{1.0f, 1.0f, 1.0f, 1.0f}, // specular
 	{-10.0f, 10.0f, 10.0f, 1.0f}  // position
 };
-glm::vec4 lightPos(-10.0f, 10.0f, 10.0f, 1.0f); //light position at the begining
-bool lightPosIsInSky = true;
+glm::vec4 lightFixedPos(-10.0f, 10.0f, 10.0f, 1.0f); //light position
+glm::vec4 lightPos = lightFixedPos;
+bool lightIsFixed(true);
+
 rt3d::materialStruct material0 = {
 	{0.2f, 0.4f, 0.2f, 1.0f}, // ambient
 	{0.5f, 1.0f, 0.5f, 1.0f}, // diffuse
@@ -66,20 +70,34 @@ rt3d::materialStruct material1 = {
 	1.0f  // shininess
 };
 
+rt3d::materialStruct materialCube1 = {
+	{(1.0 / 255.0) * 10.0f, (1.0 / 255.0) * 46.0f, (1.0 / 255.0) * 160.0f, 1.0f}, // ambient
+	{(1.0 / 255.0) * 16.0f, (1.0 / 255.0) * 52.0f, (1.0 / 255.0) * 166.0f, 1.0f}, // diffuse
+	{0.1f, 0.1f, 0.0f, 1.0f}, // specular
+	2.0f  // shininess
+};
+
+rt3d::materialStruct materialCube3 = {
+	{1.0f, 1.0f, 1.0f, 1.0f}, // ambient
+	{1.0f, 1.0f, 1.0f, 1.0f}, // diffuse
+	{0.0f, 0.0f, 0.0f, 1.0f}, // specular
+	1.0f // shininess
+};
+
 // md2 stuff
 md2model tmpModel;
 int currentAnim = 0;
 
-TTF_Font * textFont;
-
+//TTF_Font* textFont;
+/*
 // textToTexture
-GLuint textToTexture(const char * str, GLuint textID/*, TTF_Font *font, SDL_Color colour, GLuint &w,GLuint &h */) {
-	TTF_Font *font = textFont;
+GLuint textToTexture(const char* str, GLuint textID) {
+	TTF_Font* font = textFont;
 	SDL_Color colour = { 255, 255, 255 };
 	SDL_Color bg = { 0, 0, 0 };
 
-	SDL_Surface *stringImage;
-	stringImage = TTF_RenderText_Blended(font,str,colour);
+	SDL_Surface* stringImage;
+	stringImage = TTF_RenderText_Blended(font, str, colour);
 
 	if (stringImage == NULL)
 		//exitFatalError("String surface not created.");
@@ -93,13 +111,14 @@ GLuint textToTexture(const char * str, GLuint textID/*, TTF_Font *font, SDL_Colo
 	if (colours == 4) {   // alpha
 		if (stringImage->format->Rmask == 0x000000ff)
 			format = GL_RGBA;
-	    else
-		    format = GL_BGRA;
-	} else {             // no alpha
+		else
+			format = GL_BGRA;
+	}
+	else {             // no alpha
 		if (stringImage->format->Rmask == 0x000000ff)
 			format = GL_RGB;
-	    else
-		    format = GL_BGR;
+		else
+			format = GL_BGR;
 	}
 	internalFormat = (colours == 4) ? GL_RGBA : GL_RGB;
 
@@ -122,43 +141,43 @@ GLuint textToTexture(const char * str, GLuint textID/*, TTF_Font *font, SDL_Colo
 	return texture;
 }
 
-
+*/
 // Set up rendering context
-SDL_Window * setupRC(SDL_GLContext &context) {
-	SDL_Window * window;
-    if (SDL_Init(SDL_INIT_VIDEO) < 0) // Initialize video
-        rt3d::exitFatalError("Unable to initialize SDL"); 
-	  
-    // Request an OpenGL 3.0 context.
-	
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
-	SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE); 
+SDL_Window* setupRC(SDL_GLContext& context) {
+	SDL_Window* window;
+	if (SDL_Init(SDL_INIT_VIDEO) < 0) // Initialize video
+		rt3d::exitFatalError("Unable to initialize SDL");
+
+	// Request an OpenGL 3.0 context.
+
+	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
+	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
+	SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
 
 	SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);  // double buffering on
 	SDL_GL_SetAttribute(SDL_GL_ALPHA_SIZE, 8); // 8 bit alpha buffering
 	SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS, 1);
 	SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, 4); // Turn on x4 multisampling anti-aliasing (MSAA)
- 
-    // Create 800x600 window
-    window = SDL_CreateWindow("SDL/GLM/OpenGL Demo", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
-        800, 600, SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN );
+
+	// Create 800x600 window
+	window = SDL_CreateWindow("SDL/GLM/OpenGL Demo", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
+		800, 600, SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN);
 	if (!window) // Check window was created OK
-        rt3d::exitFatalError("Unable to create window");
- 
-    context = SDL_GL_CreateContext(window); // Create opengl context and attach to window
-    SDL_GL_SetSwapInterval(1); // set swap buffers to sync with monitor's vertical refresh rate
+		rt3d::exitFatalError("Unable to create window");
+
+	context = SDL_GL_CreateContext(window); // Create opengl context and attach to window
+	SDL_GL_SetSwapInterval(1); // set swap buffers to sync with monitor's vertical refresh rate
 	return window;
 }
 
 // A simple texture loading function
 // lots of room for improvement - and better error checking!
-GLuint loadBitmap(char *fname) {
+GLuint loadBitmap(char* fname) {
 	GLuint texID;
 	glGenTextures(1, &texID); // generate texture ID
 
 	// load file - using core SDL library
- 	SDL_Surface *tmpSurface;
+	SDL_Surface* tmpSurface;
 	tmpSurface = SDL_LoadBMP(fname);
 	if (!tmpSurface) {
 		std::cout << "Error loading bitmap" << std::endl;
@@ -171,19 +190,19 @@ GLuint loadBitmap(char *fname) {
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
-	SDL_PixelFormat *format = tmpSurface->format;
-	
+	SDL_PixelFormat* format = tmpSurface->format;
+
 	GLuint externalFormat, internalFormat;
 	if (format->Amask) {
 		internalFormat = GL_RGBA;
-		externalFormat = (format->Rmask < format-> Bmask) ? GL_RGBA : GL_BGRA;
+		externalFormat = (format->Rmask < format->Bmask) ? GL_RGBA : GL_BGRA;
 	}
 	else {
 		internalFormat = GL_RGB;
-		externalFormat = (format->Rmask < format-> Bmask) ? GL_RGB : GL_BGR;
+		externalFormat = (format->Rmask < format->Bmask) ? GL_RGB : GL_BGR;
 	}
 
-	glTexImage2D(GL_TEXTURE_2D,0,internalFormat,tmpSurface->w, tmpSurface->h, 0,
+	glTexImage2D(GL_TEXTURE_2D, 0, internalFormat, tmpSurface->w, tmpSurface->h, 0,
 		externalFormat, GL_UNSIGNED_BYTE, tmpSurface->pixels);
 	glGenerateMipmap(GL_TEXTURE_2D);
 
@@ -193,12 +212,25 @@ GLuint loadBitmap(char *fname) {
 
 
 void init(void) {
-	
-	shaderProgram = rt3d::initShaders("../lab2-glsl-lighting-axel-ribes/phong-tex.vert","../lab2-glsl-lighting-axel-ribes/phong-tex.frag");
+
+	shaderProgram = rt3d::initShaders("../lab2-glsl-lighting-axel-ribes/phong-tex.vert", "../lab2-glsl-lighting-axel-ribes/phong-tex.frag");
 	rt3d::setLight(shaderProgram, light0);
 	rt3d::setMaterial(shaderProgram, material0);
 
-	skyboxProgram = rt3d::initShaders("../lab2-glsl-lighting-axel-ribes/textured.vert","../lab2-glsl-lighting-axel-ribes/textured.frag");
+	skyboxProgram = rt3d::initShaders("../lab2-glsl-lighting-axel-ribes/textured.vert", "../lab2-glsl-lighting-axel-ribes/textured.frag");
+
+	bunnyShaderProgram = rt3d::initShaders("../lab2-glsl-lighting-axel-ribes/toon.vert", "../lab2-glsl-lighting-axel-ribes/toon.frag");
+	rt3d::setLight(bunnyShaderProgram, light0);
+	rt3d::setMaterial(bunnyShaderProgram, material0);
+	// set light attenuation shader uniforms
+	int bunnyUniformIndexC = glGetUniformLocation(bunnyShaderProgram, "attConst");
+	glUniform1f(bunnyUniformIndexC, 1.0f);
+
+	int bunnyUniformIndexL = glGetUniformLocation(bunnyShaderProgram, "attLinear");
+	glUniform1f(bunnyUniformIndexL, 0.02f);
+
+	int bunnyUniformIndexQ = glGetUniformLocation(bunnyShaderProgram, "attQuadratic");
+	glUniform1f(bunnyUniformIndexQ, 0.002f);
 
 	vector<GLfloat> verts;
 	vector<GLfloat> norms;
@@ -208,16 +240,22 @@ void init(void) {
 	GLuint size = indices.size();
 	meshIndexCount = size;
 	textures[0] = loadBitmap("../resources/fabric.bmp");
-	meshObjects[0] = rt3d::createMesh(verts.size()/3, verts.data(), nullptr, norms.data(), tex_coords.data(), size, indices.data());
+	meshObjects[0] = rt3d::createMesh(verts.size() / 3, verts.data(), nullptr, norms.data(), tex_coords.data(), size, indices.data());
 
 	textures[1] = loadBitmap("../resources/hobgoblin2.bmp");
 	meshObjects[1] = tmpModel.ReadMD2Model("../resources/tris.MD2");
 	md2VertCount = tmpModel.getVertDataCount();
 
-	//try blue cube
-	textures[2] = loadBitmap("../resources/blue.bmp");
-	meshObjects[2] = rt3d::createMesh(verts.size() / 3, verts.data(), nullptr, norms.data(), tex_coords.data(), size, indices.data());
-	
+	verts.clear();
+	norms.clear();
+	tex_coords.clear();
+	indices.clear();
+	rt3d::loadObj("../resources/bunny-5000.obj", verts, norms, tex_coords, indices);
+	meshObjects[2] = rt3d::createMesh(verts.size() / 3, verts.data(), nullptr, norms.data(), nullptr, indices.size(), indices.data());
+	meshIndexCount_bunny = indices.size();
+	//textures[2] = loadBitmap("../resources/Red_Bricks.bmp");
+
+
 	skybox[0] = loadBitmap("../resources/Town-skybox/Town_ft.bmp");
 	skybox[1] = loadBitmap("../resources/Town-skybox/Town_bk.bmp");
 	skybox[2] = loadBitmap("../resources/Town-skybox/Town_lf.bmp");
@@ -226,95 +264,103 @@ void init(void) {
 
 	glEnable(GL_DEPTH_TEST);
 	glEnable(GL_BLEND);
-	glBlendFunc(GL_SRC_ALPHA,GL_ONE_MINUS_SRC_ALPHA);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
 
-	// set up TrueType / SDL_ttf
-	if (TTF_Init()== -1)
+/*	// set up TrueType / SDL_ttf
+	if (TTF_Init() == -1)
 		cout << "TTF failed to initialise." << endl;
 
 	textFont = TTF_OpenFont("../resources/MavenPro-Regular.ttf", 48);
 	if (textFont == NULL)
 		cout << "Failed to open font." << endl;
-		
+
 	labels[0] = 0;//First init to 0 to avoid memory leakage if it is dynamic
-	labels[0] = textToTexture(" Hello ", labels[0]);//Actual set up of label. If dynamic, this should go in draw function
-}
+	labels[0] = textToTexture(" Hello world! ", labels[0]);//Actual set up of label. If dynamic, this should go in draw function
+	*/
+	}
+
 
 glm::vec3 moveForward(glm::vec3 pos, GLfloat angle, GLfloat d) {
-	return glm::vec3(pos.x + d*std::sin(r*DEG_TO_RADIAN), pos.y, pos.z - d*std::cos(r*DEG_TO_RADIAN));
+	return glm::vec3(pos.x + d * std::sin(r * DEG_TO_RADIAN), pos.y, pos.z - d * std::cos(r * DEG_TO_RADIAN));
 }
 
 glm::vec3 moveRight(glm::vec3 pos, GLfloat angle, GLfloat d) {
-	return glm::vec3(pos.x + d*std::cos(r*DEG_TO_RADIAN), pos.y, pos.z + d*std::sin(r*DEG_TO_RADIAN));
+	return glm::vec3(pos.x + d * std::cos(r * DEG_TO_RADIAN), pos.y, pos.z + d * std::sin(r * DEG_TO_RADIAN));
 }
 
 void update(void) {
-	const Uint8 *keys = SDL_GetKeyboardState(NULL);
-
-	if (keys[SDL_SCANCODE_L]) lightPosIsInSky = !lightPosIsInSky;  //fix or not the light to sky
-
-	if ( keys[SDL_SCANCODE_W] ) eye = moveForward(eye,r,0.1f);
-	if ( keys[SDL_SCANCODE_S] ) eye = moveForward(eye,r,-0.1f);
-	if ( keys[SDL_SCANCODE_Q] ) eye = moveRight(eye,r,-0.1f);
-	if ( keys[SDL_SCANCODE_D] ) eye = moveRight(eye,r,0.1f);
-	if ( keys[SDL_SCANCODE_R] ) eye.y += 0.1;
-	if ( keys[SDL_SCANCODE_F] ) eye.y -= 0.1;
-
-	//move the light by hand while not focused on camera
-	if (lightPosIsInSky) {
-		if (keys[SDL_SCANCODE_UP]) lightPos = glm::vec4(moveForward(lightPos, r, 0.1f), 1.0f);
-		if (keys[SDL_SCANCODE_DOWN]) lightPos = glm::vec4(moveForward(lightPos, r, -0.1f), 1.0f);
-		if (keys[SDL_SCANCODE_LEFT]) lightPos = glm::vec4(moveRight(lightPos, r, -0.1f), 1.0f);
-		if (keys[SDL_SCANCODE_RIGHT]) lightPos = glm::vec4(moveRight(lightPos, r, 0.1f),1.0f);
+	const Uint8* keys = SDL_GetKeyboardState(NULL);
+	if (keys[SDL_SCANCODE_Q]) {
+		lightIsFixed = true;
+		lightPos = lightFixedPos;
+		cout << "The light is fixed" << endl;
+		cout << "but you can move it with the arrows keys" << endl;
 	}
-	else if (!lightPosIsInSky) {
-		lightPos = glm::vec4(eye, 1.0f);
-		//cout << eye[0]  << " " << eye[1] << " " << eye[2] <<endl;
+	if (keys[SDL_SCANCODE_E]) {
+		lightIsFixed = false;
+		cout << "The light is moving with the camera" << endl;
 	}
-	
-	if ( keys[SDL_SCANCODE_COMMA] ) r -= 1.0f;
-	if ( keys[SDL_SCANCODE_PERIOD] ) r += 1.0f;
 
-	if ( keys[SDL_SCANCODE_1] ) {
+	if (keys[SDL_SCANCODE_W]) eye = moveForward(eye, r, 0.1f);
+	if (keys[SDL_SCANCODE_S]) eye = moveForward(eye, r, -0.1f);
+	if (keys[SDL_SCANCODE_A]) eye = moveRight(eye, r, -0.1f);
+	if (keys[SDL_SCANCODE_D]) eye = moveRight(eye, r, 0.1f);
+	if (keys[SDL_SCANCODE_R]) eye.y += 0.1;
+	if (keys[SDL_SCANCODE_F]) eye.y -= 0.1;
+
+	if (lightIsFixed) {
+		if (keys[SDL_SCANCODE_UP]) lightPos = glm::vec4(moveForward(lightPos, 0.0f, 0.1f), 1.0f);
+		if (keys[SDL_SCANCODE_DOWN]) lightPos = glm::vec4(moveForward(lightPos, 0.0f, -0.1f), 1.0f);
+		if (keys[SDL_SCANCODE_LEFT]) lightPos = glm::vec4(moveRight(lightPos, 0.0f, -0.1f), 1.0f);
+		if (keys[SDL_SCANCODE_RIGHT]) lightPos = glm::vec4(moveRight(lightPos, 0.0f, 0.1f), 1.0f);
+		if (keys[SDL_SCANCODE_PAGEUP]) lightPos.y += 0.1;
+		if (keys[SDL_SCANCODE_PAGEDOWN]) lightPos.y -= 0.1;
+	}
+	else lightPos = glm::vec4(eye, 1.0f);
+
+	if (keys[SDL_SCANCODE_COMMA]) r -= 1.0f;
+	if (keys[SDL_SCANCODE_PERIOD]) r += 1.0f;
+
+	if (keys[SDL_SCANCODE_1]) {
 		glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 		glDisable(GL_CULL_FACE);
 	}
-	if ( keys[SDL_SCANCODE_2] ) {
+	if (keys[SDL_SCANCODE_2]) {
 		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 		glEnable(GL_CULL_FACE);
 	}
-	if ( keys[SDL_SCANCODE_Z] ) {
+	if (keys[SDL_SCANCODE_Z]) {
 		if (--currentAnim < 0) currentAnim = 19;
 		cout << "Current animation: " << currentAnim << endl;
 	}
-	if ( keys[SDL_SCANCODE_X] ) {
+	if (keys[SDL_SCANCODE_X]) {
 		if (++currentAnim >= 20) currentAnim = 0;
 		cout << "Current animation: " << currentAnim << endl;
 	}
 }
 
 
-void draw(SDL_Window * window) {
+void draw(SDL_Window* window) {
 	// clear the screen
 	glEnable(GL_CULL_FACE);
-	glClearColor(0.5f,0.5f,0.5f,1.0f);
-	glClear(GL_COLOR_BUFFER_BIT  | GL_DEPTH_BUFFER_BIT);
-	
+	glClearColor(0.5f, 0.5f, 0.5f, 1.0f);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
 
 
 	glm::mat4 projection(1.0);
-	projection = glm::perspective(float(60.0f*DEG_TO_RADIAN),800.0f/600.0f,1.0f,150.0f);
+	projection = glm::perspective(float(60.0f * DEG_TO_RADIAN), 800.0f / 600.0f, 1.0f, 150.0f);
 	rt3d::setUniformMatrix4fv(shaderProgram, "projection", glm::value_ptr(projection));
-	
+
 
 	GLfloat scale(1.0f); // just to allow easy scaling of complete scene
-	
+
 	glm::mat4 modelview(1.0); // set base position for scene
 	mvStack.push(modelview);
 
-	at = moveForward(eye,r,1.0f);
-	mvStack.top() = glm::lookAt(eye,at,up);
+	at = moveForward(eye, r, 1.0f);
+	mvStack.top() = glm::lookAt(eye, at, up);
 
 
 	// draw a skybox
@@ -323,42 +369,42 @@ void draw(SDL_Window * window) {
 
 	glDepthMask(GL_FALSE); // make sure depth test is off
 	glm::mat3 mvRotOnlyMat3 = glm::mat3(mvStack.top());
-	mvStack.push( glm::mat4(mvRotOnlyMat3) );
+	mvStack.push(glm::mat4(mvRotOnlyMat3));
 
 	// front
-	mvStack.push( mvStack.top() );
+	mvStack.push(mvStack.top());
 	glBindTexture(GL_TEXTURE_2D, skybox[0]);
 	mvStack.top() = glm::scale(mvStack.top(), glm::vec3(2.0f, 2.0f, 2.0f));
 	mvStack.top() = glm::translate(mvStack.top(), glm::vec3(0.0f, 0.0f, -2.0f));
 	rt3d::setUniformMatrix4fv(skyboxProgram, "modelview", glm::value_ptr(mvStack.top()));
-	rt3d::drawIndexedMesh(meshObjects[0],meshIndexCount,GL_TRIANGLES);
+	rt3d::drawIndexedMesh(meshObjects[0], meshIndexCount, GL_TRIANGLES);
 	mvStack.pop();
 
 	// back
-	mvStack.push( mvStack.top() );
+	mvStack.push(mvStack.top());
 	glBindTexture(GL_TEXTURE_2D, skybox[1]);
 	mvStack.top() = glm::scale(mvStack.top(), glm::vec3(2.0f, 2.0f, 2.0f));
 	mvStack.top() = glm::translate(mvStack.top(), glm::vec3(0.0f, 0.0f, 2.0f));
 	rt3d::setUniformMatrix4fv(skyboxProgram, "modelview", glm::value_ptr(mvStack.top()));
-	rt3d::drawIndexedMesh(meshObjects[0],meshIndexCount,GL_TRIANGLES);
+	rt3d::drawIndexedMesh(meshObjects[0], meshIndexCount, GL_TRIANGLES);
 	mvStack.pop();
 
 	// left
-	mvStack.push( mvStack.top() );
+	mvStack.push(mvStack.top());
 	glBindTexture(GL_TEXTURE_2D, skybox[2]);
 	mvStack.top() = glm::scale(mvStack.top(), glm::vec3(2.0f, 2.0f, 2.0f));
 	mvStack.top() = glm::translate(mvStack.top(), glm::vec3(-2.0f, 0.0f, 0.0f));
 	rt3d::setUniformMatrix4fv(skyboxProgram, "modelview", glm::value_ptr(mvStack.top()));
-	rt3d::drawIndexedMesh(meshObjects[0],meshIndexCount,GL_TRIANGLES);
+	rt3d::drawIndexedMesh(meshObjects[0], meshIndexCount, GL_TRIANGLES);
 	mvStack.pop();
 
 	// right
-	mvStack.push( mvStack.top() );
+	mvStack.push(mvStack.top());
 	glBindTexture(GL_TEXTURE_2D, skybox[3]);
 	mvStack.top() = glm::scale(mvStack.top(), glm::vec3(2.0f, 2.0f, 2.0f));
 	mvStack.top() = glm::translate(mvStack.top(), glm::vec3(2.0f, 0.0f, 0.0f));
 	rt3d::setUniformMatrix4fv(skyboxProgram, "modelview", glm::value_ptr(mvStack.top()));
-	rt3d::drawIndexedMesh(meshObjects[0],meshIndexCount,GL_TRIANGLES);
+	rt3d::drawIndexedMesh(meshObjects[0], meshIndexCount, GL_TRIANGLES);
 	mvStack.pop();
 
 
@@ -367,61 +413,96 @@ void draw(SDL_Window * window) {
 	// back to remainder of rendering
 	glDepthMask(GL_TRUE); // make sure depth test is on
 
-	
+	glUseProgram(bunnyShaderProgram);
 
+	glm::vec4 tmpB = mvStack.top() * lightPos;
+	light0.position[0] = tmpB.x;
+	light0.position[1] = tmpB.y;
+	light0.position[2] = tmpB.z;
+	rt3d::setLightPos(bunnyShaderProgram, glm::value_ptr(tmpB));
 
+	rt3d::setUniformMatrix4fv(bunnyShaderProgram, "projection", glm::value_ptr(projection));
 
-	
+	mvStack.push(mvStack.top());
+	mvStack.top() = glm::translate(mvStack.top(), glm::vec3(-15.0f, 1.0f, 0.0f));
+	mvStack.top() = glm::scale(mvStack.top(), glm::vec3(10.0f, 10.0f, 10.0f));
+	rt3d::setUniformMatrix4fv(bunnyShaderProgram, "modelview", glm::value_ptr(mvStack.top()));
+	rt3d::setMaterial(bunnyShaderProgram, material0);
+	rt3d::drawIndexedMesh(meshObjects[2], meshIndexCount_bunny, GL_TRIANGLES);
+	mvStack.pop();
+
 	glUseProgram(shaderProgram);
 
-
-	GLfloat attConstant = 1;
-	GLfloat attLinear = 0.01;
-	GLfloat attQuadratic = 0.01;
-
-	// set light attenuation shader uniforms
-	int uniformIndex =
-		glGetUniformLocation(shaderProgram,
-			"attConst");
-	glUniform1f(uniformIndex, attConstant);
-	// repeat for other terms		// set light attenuation shader uniforms
-	int uniformLine =
-		glGetUniformLocation(shaderProgram,
-			"attLinear");
-	glUniform1f(uniformLine, attLinear);
-	// repeat for other terms		// set light attenuation shader uniforms
-	int uniformQuadra =
-		glGetUniformLocation(shaderProgram,
-			"attQuadratic");
-	glUniform1f(uniformQuadra, attQuadratic);
-	// repeat for other terms
-
-
-	glm::vec4 tmp = mvStack.top()*lightPos;
+	glm::vec4 tmp = mvStack.top() * lightPos;
 	light0.position[0] = tmp.x;
 	light0.position[1] = tmp.y;
 	light0.position[2] = tmp.z;
 	rt3d::setLightPos(shaderProgram, glm::value_ptr(tmp));
 
+	// set light attenuation shader uniforms
+	int uniformIndexC = glGetUniformLocation(shaderProgram, "attConst");
+	glUniform1f(uniformIndexC, 1.0f);
+
+	int uniformIndexL = glGetUniformLocation(shaderProgram, "attLinear");
+	glUniform1f(uniformIndexL, 0.02f);
+
+	int uniformIndexQ = glGetUniformLocation(shaderProgram, "attQuadratic");
+	glUniform1f(uniformIndexQ, 0.002f);
 
 	rt3d::setUniformMatrix4fv(shaderProgram, "projection", glm::value_ptr(projection));
 
+	// draw simple cubes next to the hobgoblin
+	glBindTexture(GL_TEXTURE_2D, textures[1]);
+	mvStack.push(mvStack.top());
+	mvStack.top() = glm::translate(mvStack.top(), glm::vec3(3.0f, 1.2f, -5.0f));
+	mvStack.top() = glm::scale(mvStack.top(), glm::vec3(0.5f, 0.5f, 0.5f));
+	rt3d::setUniformMatrix4fv(shaderProgram, "modelview", glm::value_ptr(mvStack.top()));
+	rt3d::setMaterial(shaderProgram, materialCube1);
+	rt3d::drawIndexedMesh(meshObjects[0], meshIndexCount, GL_TRIANGLES);
+	mvStack.pop();
+
+	glBindTexture(GL_TEXTURE_2D, textures[0]);
+	mvStack.push(mvStack.top());
+	mvStack.top() = glm::translate(mvStack.top(), glm::vec3(5.0f, 1.2f, -5.0f));
+	mvStack.top() = glm::scale(mvStack.top(), glm::vec3(0.5f, 0.5f, 0.5f));
+	rt3d::setUniformMatrix4fv(shaderProgram, "modelview", glm::value_ptr(mvStack.top()));
+	rt3d::setMaterial(shaderProgram, material0);
+	rt3d::drawIndexedMesh(meshObjects[0], meshIndexCount, GL_TRIANGLES);
+	mvStack.pop();
+
+	glBindTexture(GL_TEXTURE_2D, textures[1]);
+	mvStack.push(mvStack.top());
+	mvStack.top() = glm::translate(mvStack.top(), glm::vec3(7.0f, 1.2f, -5.0f));
+	mvStack.top() = glm::scale(mvStack.top(), glm::vec3(0.5f, 0.5f, 0.5f));
+	rt3d::setUniformMatrix4fv(shaderProgram, "modelview", glm::value_ptr(mvStack.top()));
+	rt3d::setMaterial(shaderProgram, materialCube3);
+	rt3d::drawIndexedMesh(meshObjects[0], meshIndexCount, GL_TRIANGLES);
+	mvStack.pop();
+
+	// draw a cube for the following the light
+	glBindTexture(GL_TEXTURE_2D, textures[0]);
+	mvStack.push(mvStack.top());
+	mvStack.top() = glm::translate(mvStack.top(), glm::vec3(lightPos.x, 0, lightPos.z));
+	mvStack.top() = glm::scale(mvStack.top(), glm::vec3(0.2f, 0.2f, 0.2f));
+	rt3d::setUniformMatrix4fv(shaderProgram, "modelview", glm::value_ptr(mvStack.top()));
+	rt3d::setMaterial(shaderProgram, materialCube1);
+	rt3d::drawIndexedMesh(meshObjects[0], meshIndexCount, GL_TRIANGLES);
+	mvStack.pop();
 
 	// draw a cube for ground plane
 	glBindTexture(GL_TEXTURE_2D, textures[0]);
 	mvStack.push(mvStack.top());
 	mvStack.top() = glm::translate(mvStack.top(), glm::vec3(-10.0f, -0.1f, -10.0f));
-	mvStack.top() = glm::scale(mvStack.top(),glm::vec3(20.0f, 0.1f, 20.0f));
+	mvStack.top() = glm::scale(mvStack.top(), glm::vec3(20.0f, 0.1f, 20.0f));
 	rt3d::setUniformMatrix4fv(shaderProgram, "modelview", glm::value_ptr(mvStack.top()));
 	rt3d::setMaterial(shaderProgram, material0);
-	rt3d::drawIndexedMesh(meshObjects[0],meshIndexCount,GL_TRIANGLES);
+	rt3d::drawIndexedMesh(meshObjects[0], meshIndexCount, GL_TRIANGLES);
 	mvStack.pop();
 
 
-
 	// Animate the md2 model, and update the mesh with new vertex data
-	tmpModel.Animate(currentAnim,0.1);
-	rt3d::updateMesh(meshObjects[1],RT3D_VERTEX,tmpModel.getAnimVerts(),tmpModel.getVertDataSize());
+	tmpModel.Animate(currentAnim, 0.1);
+	rt3d::updateMesh(meshObjects[1], RT3D_VERTEX, tmpModel.getAnimVerts(), tmpModel.getVertDataSize());
 
 	// draw the hobgoblin
 	glCullFace(GL_FRONT); // md2 faces are defined clockwise, so cull front face
@@ -430,16 +511,13 @@ void draw(SDL_Window * window) {
 	rt3d::setMaterial(shaderProgram, tmpMaterial);
 	mvStack.push(mvStack.top());
 	mvStack.top() = glm::translate(mvStack.top(), glm::vec3(1.0f, 1.2f, -5.0f));
-	mvStack.top() = glm::rotate(mvStack.top(), float(90.0f*DEG_TO_RADIAN), glm::vec3(-1.0f, 0.0f, 0.0f));
-	mvStack.top() = glm::scale(mvStack.top(),glm::vec3(scale*0.05, scale*0.05, scale*0.05));
+	mvStack.top() = glm::rotate(mvStack.top(), float(90.0f * DEG_TO_RADIAN), glm::vec3(-1.0f, 0.0f, 0.0f));
+	mvStack.top() = glm::scale(mvStack.top(), glm::vec3(scale * 0.05, scale * 0.05, scale * 0.05));
 	rt3d::setUniformMatrix4fv(shaderProgram, "modelview", glm::value_ptr(mvStack.top()));
 	rt3d::drawMesh(meshObjects[1], md2VertCount, GL_TRIANGLES);
 	mvStack.pop();
 	glCullFace(GL_BACK);
 
-
-
-	
 	glUseProgram(skyboxProgram);//Use the texture shader again to draw the labelled cube
 	rt3d::setUniformMatrix4fv(skyboxProgram, "projection", glm::value_ptr(projection));
 	// draw a cube block on top of ground plane
@@ -454,65 +532,27 @@ void draw(SDL_Window * window) {
 	rt3d::drawIndexedMesh(meshObjects[0], meshIndexCount, GL_TRIANGLES);
 	mvStack.pop();
 
-//
-//
-// draw a blue cube
-	glBindTexture(GL_TEXTURE_2D, textures[2]);
-	mvStack.push(mvStack.top());
-	mvStack.top() = glm::translate(mvStack.top(), glm::vec3(0.0f, 2.0f, -15.0f));
-	mvStack.top() = glm::scale(mvStack.top(), glm::vec3(-5.0f, 2.0f, -5.0f));
-	rt3d::setUniformMatrix4fv(shaderProgram, "modelview", glm::value_ptr(mvStack.top()));
-	rt3d::setMaterial(shaderProgram, material0);
-	rt3d::drawIndexedMesh(meshObjects[2], meshIndexCount, GL_TRIANGLES);
-	mvStack.pop();
 
-//
-//
-// draw a hobgoblin cube
-	glBindTexture(GL_TEXTURE_2D, textures[1]);
-	mvStack.push(mvStack.top());
-	mvStack.top() = glm::translate(mvStack.top(), glm::vec3(0.0f, 8.0f, -15.0f));
-	mvStack.top() = glm::scale(mvStack.top(), glm::vec3(-5.0f, 2.0f, -5.0f));
-	rt3d::setUniformMatrix4fv(shaderProgram, "modelview", glm::value_ptr(mvStack.top()));
-	rt3d::setMaterial(shaderProgram, material0);
-	rt3d::drawIndexedMesh(meshObjects[2], meshIndexCount, GL_TRIANGLES);
-	mvStack.pop();
-
-	//
-//
-// cube following light
-	glBindTexture(GL_TEXTURE_2D, textures[1]);
-	mvStack.push(mvStack.top());
-	mvStack.top() = glm::translate(mvStack.top(), glm::vec3(lightPos.x, 1.0f, lightPos.z)); // position same as light
-	mvStack.top() = glm::scale(mvStack.top(), glm::vec3(0.1f, 0.1f, 0.1f)); //shape or size
-	rt3d::setUniformMatrix4fv(shaderProgram, "modelview", glm::value_ptr(mvStack.top()));
-	rt3d::setMaterial(shaderProgram, material0);
-	rt3d::drawIndexedMesh(meshObjects[2], meshIndexCount, GL_TRIANGLES);
-	mvStack.pop();
-
-
-	
-	
 	// remember to use at least one pop operation per push...
 	mvStack.pop(); // initial matrix
 	glDepthMask(GL_TRUE);
 
-    SDL_GL_SwapWindow(window); // swap buffers
+	SDL_GL_SwapWindow(window); // swap buffers
 }
 
 
 // Program entry point - SDL manages the actual WinMain entry point for us
-int main(int argc, char *argv[]) {
-    SDL_Window * hWindow; // window handle
-    SDL_GLContext glContext; // OpenGL context handle
-    hWindow = setupRC(glContext); // Create window and render context 
+int main(int argc, char* argv[]) {
+	SDL_Window* hWindow; // window handle
+	SDL_GLContext glContext; // OpenGL context handle
+	hWindow = setupRC(glContext); // Create window and render context 
 
 	// Required on Windows *only* init GLEW to access OpenGL beyond 1.1
 	glewExperimental = GL_TRUE;
 	GLenum err = glewInit();
 	if (GLEW_OK != err) { // glewInit failed, something is seriously wrong
 		std::cout << "glewInit failed, aborting." << endl;
-		exit (1);
+		exit(1);
 	}
 	cout << glGetString(GL_VERSION) << endl;
 
@@ -520,7 +560,7 @@ int main(int argc, char *argv[]) {
 
 	bool running = true; // set running to true
 	SDL_Event sdlEvent;  // variable to detect SDL events
-	while (running)	{	// the event loop
+	while (running) {	// the event loop
 		while (SDL_PollEvent(&sdlEvent)) {
 			if (sdlEvent.type == SDL_QUIT)
 				running = false;
@@ -529,8 +569,8 @@ int main(int argc, char *argv[]) {
 		draw(hWindow); // call the draw function
 	}
 
-    SDL_GL_DeleteContext(glContext);
-    SDL_DestroyWindow(hWindow);
-    SDL_Quit();
-    return 0;
+	SDL_GL_DeleteContext(glContext);
+	SDL_DestroyWindow(hWindow);
+	SDL_Quit();
+	return 0;
 }

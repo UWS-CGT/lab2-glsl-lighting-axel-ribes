@@ -8,7 +8,9 @@ uniform mat4 projection;
 uniform vec4 lightPosition;
 //uniform mat3 normalmatrix;
 
-
+uniform float attConst;
+uniform float attLinear;
+uniform float attQuadratic;
 out float ex_D;
 
 in  vec3 in_Position;
